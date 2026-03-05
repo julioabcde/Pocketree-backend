@@ -1,12 +1,12 @@
-# 🌳 Pocketree API
+# Pocketree API
 
 Backend API untuk aplikasi Pocketree - Aplikasi manajemen keuangan pribadi yang modern dan powerful.
 
-## 📋 Deskripsi
+## Deskripsi
 
 Pocketree API adalah backend service yang dibangun dengan FastAPI untuk mengelola transaksi keuangan, autentikasi pengguna, dan berbagai fitur manajemen keuangan pribadi lainnya. API ini menggunakan PostgreSQL sebagai database dan SQLAlchemy untuk ORM dengan dukungan async/await untuk performa optimal.
 
-## ⚡ Tech Stack
+## Tech Stack
 
 - **Framework**: FastAPI 0.135.1
 - **Python**: 3.14+
@@ -19,36 +19,37 @@ Pocketree API adalah backend service yang dibangun dengan FastAPI untuk mengelol
 - **Logging**: Loguru
 - **Server**: Uvicorn dengan dukungan standard
 
-## ✨ Fitur
+## Fitur
 
-- 🔐 **Autentikasi & Autorisasi**
+- **Autentikasi & Autorisasi**
   - JWT-based authentication
   - Password hashing dengan bcrypt
   - Secure token management
 
-- 👥 **Manajemen User**
+- **Manajemen User**
   - User registration & management
   - User profiles dengan timestamps
 
-- 💰 **Manajemen Transaksi**
+- **Manajemen Transaksi**
   - CRUD operations untuk transaksi keuangan
   - Tracking income & expenses
 
-- 🛡️ **Security**
+- **Security**
   - Environment-based configuration
   - Secure password handling
   - Protected routes
 
-## 📦 Prerequisites
+## Prerequisites
 
 Pastikan sistem Anda sudah terinstall:
 
 - Python 3.14+ ([Download](https://www.python.org/downloads/))
 - PostgreSQL 12+ ([Download](https://www.postgresql.org/download/))
 - pip (Python package manager)
+- pip-tools (untuk dependency management) - `pip install pip-tools`
 - Git
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### 1. Clone Repository
 
@@ -72,8 +73,14 @@ source venv/bin/activate
 ### 3. Install Dependencies
 
 ```bash
+# Install pip-tools untuk dependency management
+pip install pip-tools
+
+# Install semua dependencies
 pip install -r requirements.txt
 ```
+
+> **Note**: pip-tools digunakan untuk mengelola dependencies dan menghindari dependency hell. Lihat section [Dependency Management](#dependency-management---menghindari-dependency-hell) untuk detail lengkap.
 
 ### 4. Setup Environment Variables
 
@@ -88,7 +95,7 @@ SECRET_KEY=your-secret-key-here-change-this-in-production
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
-**⚠️ PENTING:**
+**PENTING:**
 
 - Ganti `username` dan `password` dengan kredensial PostgreSQL Anda
 - Generate SECRET_KEY yang strong untuk production:
@@ -123,7 +130,7 @@ alembic revision --autogenerate -m "description"
 alembic upgrade head
 ```
 
-## 🏃 Running the Application
+## Running the Application
 
 ### Development Mode
 
@@ -139,14 +146,14 @@ Server akan berjalan di: `http://localhost:8000`
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 Setelah aplikasi berjalan, akses dokumentasi interaktif di:
 
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 pocketree-api/
@@ -198,7 +205,7 @@ pocketree-api/
 └── requirements.txt           # Pinned dependencies
 ```
 
-## 🔧 Development
+## Development
 
 ### Code Formatting
 
@@ -231,20 +238,73 @@ alembic current
 alembic history
 ```
 
-### Adding New Dependencies
+### Dependency Management - Menghindari Dependency Hell
+
+Project ini menggunakan **pip-tools** untuk mengelola dependencies dengan clean dan reproducible, menghindari "dependency hell".
+
+#### Konsep: requirements.in vs requirements.txt
+
+**requirements.in** - Top-level dependencies yang ditulis manual:
+
+```
+fastapi
+sqlalchemy
+asyncpg
+```
+
+**requirements.txt** - Fully resolved dependency tree (auto-generated):
+
+```
+fastapi==0.135.1
+starlette==0.52.1  # transitive dependency
+anyio==4.12.1       # transitive dependency
+...
+```
+
+#### Setup pip-tools (One-time)
 
 ```bash
-# Add to requirements.in
+pip install pip-tools
+```
+
+#### Menambah Dependency Baru
+
+```bash
+# 1. Tambahkan ke requirements.in
 echo "new-package" >> requirements.in
 
-# Compile dependencies
-pip-compile
+# 2. Compile untuk resolve all dependencies
+pip-compile requirements.in
 
-# Install
+# 3. Install
 pip install -r requirements.txt
 ```
 
-## 🔐 Security Best Practices
+#### Update Dependencies
+
+```bash
+# Update semua ke versi terbaru (hati-hati!)
+pip-compile --upgrade requirements.in
+
+# Update package tertentu saja
+pip-compile --upgrade-package fastapi requirements.in
+```
+
+#### Benefits
+
+- **Clean & Readable** - `requirements.in` hanya berisi dependencies yang benar-benar dibutuhkan
+- **Reproducible** - `requirements.txt` lock exact versions untuk semua developer
+- **Safe Updates** - `pip-compile` ensures compatible dependency tree
+- **No Conflicts** - Menghindari version conflicts antar dependencies
+
+#### Important Notes
+
+- **Edit**: `requirements.in` (manually)
+- **Jangan edit**: `requirements.txt` (auto-generated)
+- **Commit both files** ke Git
+- Run `pip-compile` setiap kali ubah `requirements.in`
+
+## Security Best Practices
 
 1. **Never commit `.env` file** - File ini sudah di-ignore di Git
 2. **Never commit credentials** - Gunakan environment variables
@@ -254,7 +314,7 @@ pip install -r requirements.txt
 6. **Validate input data** - Pydantic schemas untuk validation
 7. **Rate limiting** - Implement rate limiting untuk API endpoints (upcoming)
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Install test dependencies
@@ -267,7 +327,7 @@ pytest
 pytest --cov=app tests/
 ```
 
-## 📝 Environment Variables Reference
+## Environment Variables Reference
 
 | Variable                      | Description                       | Example                                                   |
 | ----------------------------- | --------------------------------- | --------------------------------------------------------- |
@@ -275,7 +335,7 @@ pytest --cov=app tests/
 | `SECRET_KEY`                  | JWT secret key for token signing  | `your-super-secret-key-change-in-production`              |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiration time         | `60`                                                      |
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Database Connection Error
 
@@ -298,21 +358,21 @@ Solution: Check database connection dan pastikan database exists
 Check: alembic current
 ```
 
-## 📄 License
+## License
 
-[Specify your license here]
+This project is proprietary and confidential.
+Unauthorized copying or distribution is strictly prohibited.
 
-## 👥 Contributors
+## Contributors
 
-- Julio - Initial work
+- Julio
+- Charles Cahyadi
 
-## 🔗 Links
+
+## Links
 
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
 - [Alembic Documentation](https://alembic.sqlalchemy.org/)
 - [Pydantic Documentation](https://docs.pydantic.dev/)
 
----
-
-**Made with ❤️ using FastAPI**
