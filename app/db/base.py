@@ -1,9 +1,5 @@
-from sqlalchemy.orm import DeclarativeBase
+from app.db.base_class import Base  # noqa: F401
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-# Import models here so Alembic can detect them
-from app.modules.auth.model import User
+# Import all models here to ensure they are registered with SQLAlchemy's metadata
+# This is necessary for Alembic's autogenerate feature to detect schema changes
+from app.modules.auth.model import User  # noqa: F401

@@ -1,49 +1,50 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
+from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Alembic Config object - provides access to alembic.ini values
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Configure Python logging from alembic.ini
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+# Import Base to register all SQLAlchemy models for autogenerate support
+# This must happen before target_metadata is set
 from app.db.base import Base
 from app.core.config import settings
 
+# Set target metadata for Alembic to track schema changes
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+
+def get_sync_url() -> str:
+    """Convert async database URL to sync version for Alembic.
+
+    Alembic requires synchronous database operations.
+    Replaces asyncpg (async) driver with psycopg2 (sync).
+
+    Returns:
+        str: Synchronous PostgreSQL connection URL
+    """
+    return settings.database_url.replace(
+        "postgresql+asyncpg://", "postgresql+psycopg2://"
+    )
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """Run migrations in offline mode.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+    Generates SQL scripts without connecting to the database.
+    Useful for:
+    - Generating migration SQL files
+    - Environments without database access
+    - Review/audit purposes
 
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    Configures context with URL only (no Engine/DBAPI needed).
     """
-    url = config.get_main_option("sqlalchemy.url")
-    if url is None:
-        url = settings.database_url
+    url = get_sync_url()
 
     context.configure(
         url=url,
@@ -57,19 +58,18 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """Run migrations in online mode.
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
+    Executes migrations directly against the database.
+    Creates an Engine and establishes a connection.
 
+    This is the standard mode for applying migrations.
     """
+    # Override alembic.ini sqlalchemy.url with our dynamic URL
     configuration = config.get_section(config.config_ini_section, {})
-    if (
-        "sqlalchemy.url" not in configuration
-        or configuration["sqlalchemy.url"] is None
-    ):
-        configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = get_sync_url()
 
+    # Create engine with NullPool (no connection pooling for migrations)
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
@@ -85,6 +85,7 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
+# Determine mode and run appropriate migration function
 if context.is_offline_mode():
     run_migrations_offline()
 else:
