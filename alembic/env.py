@@ -12,8 +12,8 @@ if config.config_file_name is not None:
 
 # Import Base to register all SQLAlchemy models for autogenerate support
 # This must happen before target_metadata is set
-from app.db.base import Base
-from app.core.config import settings
+from app.db.base import Base  # noqa: E402
+from app.core.config import settings  # noqa: E402
 
 # Set target metadata for Alembic to track schema changes
 target_metadata = Base.metadata
