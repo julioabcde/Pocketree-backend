@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -16,23 +17,12 @@ from app.modules.accounts.service import (
     get_account_summary,
     soft_delete_account,
     update_account,
+    check_duplicate_account,
 )
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
-
-# TODO: 
-# 1. 
-# Check /accounts endpoint. Currently it returns empty array even if there are accounts in the database
-# This is because the get_accounts_by_user function is filtering by user_id, but the user_id is not being set when creating an account.
-# Need to set the user_id when creating an account and also make sure that the user_id
-# is being passed correctly to the get_accounts_by_user function.
-# Also need to check the get_account_summary function to make sure it is calculating the total balance and accounts count correctly.
-# Finally, need to check the get_owned_account dependency to make sure it is checking the ownership of the account correctly.
-# 2. 
-# Add unique constraint on account name per user.
-# This will prevent users from creating multiple accounts with the same name, which can cause confusion when listing accounts and calculating summaries.
 
 
 @router.post(
@@ -45,7 +35,24 @@ async def create(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    account = await create_account(db, current_user.id, data)
+    is_duplicate = await check_duplicate_account(
+        db, current_user.id, data.name, data.type
+    )
+    if is_duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active account with the same name and type already exists.",
+        )
+
+    try:
+        account = await create_account(db, current_user.id, data)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active account with the same name and type already exists.",
+        )
+
     return account
 
 
@@ -82,6 +89,7 @@ async def detail(
 ):
     return account
 
+
 @router.put(
     "/{account_id}",
     response_model=AccountResponse,
@@ -91,8 +99,37 @@ async def update(
     account: Account = Depends(get_owned_account),
     db: AsyncSession = Depends(get_db),
 ):
-    updated = await update_account(db, account, data)
+    final_name = data.name if data.name is not None else account.name
+    final_type = data.type if data.type is not None else account.type
+
+    name_changed = final_name != account.name
+    type_changed = final_type != account.type
+
+    if name_changed or type_changed:
+        is_duplicate = await check_duplicate_account(
+            db,
+            account.user_id,
+            final_name,
+            final_type,
+            exclude_id=account.id,
+        )
+        if is_duplicate:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An active account with the same name and type already exists.",
+            )
+
+    try:
+        updated = await update_account(db, account, data)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active account with the same name and type already exists.",
+        )
+
     return updated
+
 
 @router.delete(
     "/{account_id}",
