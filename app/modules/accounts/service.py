@@ -1,7 +1,9 @@
 from decimal import Decimal
 from datetime import datetime, timezone
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.accounts.models import Account
@@ -14,7 +16,29 @@ __all__ = [
     "get_account_summary",
     "update_account",
     "soft_delete_account",
+    "check_duplicate_account",
 ]
+
+
+async def check_duplicate_account(
+    db: AsyncSession,
+    user_id: int,
+    name: str,
+    account_type: str,
+    exclude_id: int | None = None,
+) -> bool:
+    query = select(Account).where(
+        Account.user_id == user_id,
+        func.lower(Account.name) == func.lower(name),
+        Account.type == account_type,
+        ~Account.is_deleted,
+    )
+
+    if exclude_id is not None:
+        query = query.where(Account.id != exclude_id)
+
+    result = await db.execute(query)
+    return result.scalar_one_or_none() is not None
 
 
 async def create_account(
@@ -27,8 +51,18 @@ async def create_account(
         balance=data.initial_balance,
         initial_balance=data.initial_balance,
     )
+
     db.add(account)
-    await db.commit()
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Account with name '{data.name}' already exists",
+        )
+
     await db.refresh(account)
     return account
 

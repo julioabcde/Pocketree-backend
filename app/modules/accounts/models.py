@@ -9,6 +9,8 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Index,
+    text,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -34,6 +36,17 @@ NEGATIVE_ALLOWED_TYPES: set[AccountType] = {
 
 class Account(Base, TimestampMixin):
     __tablename__ = "accounts"
+
+    __table_args__ = (
+        Index(
+            "ix_accounts_unique_active",
+            "user_id",
+            text("LOWER(name)"),
+            "type",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
