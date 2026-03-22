@@ -19,7 +19,7 @@ from app.db.base_class import Base
 from app.db.mixins import TimestampMixin
 
 
-__all__ = ["Account", "AccountType", "NEGATIVE_ALLOWED_TYPES"]
+__all__ = ["Account", "AccountType", "ASSET_TYPES", "LIABILITY_TYPES"]
 
 
 class AccountType(str, enum.Enum):
@@ -29,7 +29,13 @@ class AccountType(str, enum.Enum):
     credit_card = "credit_card"
 
 
-NEGATIVE_ALLOWED_TYPES: set[AccountType] = {
+ASSET_TYPES: set[AccountType] = {
+    AccountType.cash,
+    AccountType.bank_account,
+    AccountType.e_wallet,
+}
+
+LIABILITY_TYPES: set[AccountType] = {
     AccountType.credit_card,
 }
 
@@ -81,12 +87,18 @@ class Account(Base, TimestampMixin):
     )
 
     @property
-    def allows_negative_balance(self) -> bool:
-        """Check if the account type permits negative balances."""
-        return self.type in NEGATIVE_ALLOWED_TYPES
-
     def __repr__(self):
         return (
             f"<Account(id={self.id}, name={self.name!r},"
             f" type={self.type.value}, balance={self.balance})>"
         )
+        
+    @property
+    def is_asset(self) -> bool:
+        """True if this account holds money you own."""
+        return self.type in ASSET_TYPES
+
+    @property
+    def is_liability(self) -> bool:
+        """True if this account represents money you owe."""
+        return self.type in LIABILITY_TYPES
