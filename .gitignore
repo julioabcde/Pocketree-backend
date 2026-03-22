@@ -65,3 +65,5 @@ desktop.ini
 
 # Ruff cache
 .ruff_cache/
+
+.claude/*.local*

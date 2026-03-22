@@ -24,7 +24,7 @@ from app.modules.category.service import (
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 
-router = APIRouter(prefix="/categories", tags=["Categories"])
+router = APIRouter(prefix="/v1/categories", tags=["Categories"])
 
 
 @router.post(

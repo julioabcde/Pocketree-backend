@@ -25,7 +25,7 @@ from app.modules.auth.service import (
 )
 from app.modules.accounts.service import create_default_account
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/v1/auth", tags=["Auth"])
 
 
 @router.post(

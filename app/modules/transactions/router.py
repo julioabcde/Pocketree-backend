@@ -29,7 +29,7 @@ from app.modules.transactions.service import (
     update_transaction,
 )
 
-router = APIRouter(prefix="/transactions", tags=["Transactions"])
+router = APIRouter(prefix="/v1/transactions", tags=["Transactions"])
 
 
 @router.post(
