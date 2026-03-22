@@ -22,7 +22,7 @@ from app.modules.accounts.service import (
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 
-router = APIRouter(prefix="/accounts", tags=["Accounts"])
+router = APIRouter(prefix="/v1/accounts", tags=["Accounts"])
 
 
 @router.post(

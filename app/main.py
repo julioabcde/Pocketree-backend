@@ -25,10 +25,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(auth_router)
-app.include_router(accounts_router)
-app.include_router(category_router)
-app.include_router(transactions_router)
+app.include_router(auth_router, prefix='/api')
+app.include_router(accounts_router, prefix='/api')
+app.include_router(category_router, prefix='/api')
+app.include_router(transactions_router, prefix='/api')
 
 
 @app.get("/")
