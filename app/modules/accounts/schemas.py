@@ -54,5 +54,7 @@ class AccountResponse(BaseModel):
 
 
 class AccountSummary(BaseModel):
-    total_balance: Decimal
+    total_assets: Decimal
+    total_liabilities: Decimal
+    net_worth: Decimal
     accounts_count: int

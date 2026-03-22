@@ -7,6 +7,7 @@ from app.db.session import AsyncSessionLocal
 from app.modules.auth.router import router as auth_router
 from app.modules.accounts.router import router as accounts_router
 from app.modules.category.router import router as category_router
+from app.modules.transactions.router import router as transactions_router
 from app.modules.category.service import seed_default_categories
 
 
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
         logger.info("Default categories seeded")
     yield
 
+
 app = FastAPI(
     title="Pocketree API",
     version="1.0.0",
@@ -26,6 +28,8 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(accounts_router)
 app.include_router(category_router)
+app.include_router(transactions_router)
+
 
 @app.get("/")
 async def root():

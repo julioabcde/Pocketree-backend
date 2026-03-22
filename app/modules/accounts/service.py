@@ -6,10 +6,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.accounts.models import Account
+from app.modules.accounts.models import Account, AccountType, ASSET_TYPES
 from app.modules.accounts.schemas import AccountCreate, AccountUpdate
 
 __all__ = [
+    "create_default_account",
     "create_account",
     "get_account_by_id",
     "get_accounts_by_user",
@@ -18,6 +19,20 @@ __all__ = [
     "soft_delete_account",
     "check_duplicate_account",
 ]
+
+
+async def create_default_account(db: AsyncSession, user_id: int) -> Account:
+    account = Account(
+        user_id=user_id,
+        name="Cash",
+        type=AccountType.cash,
+        balance=Decimal("0.00"),
+        initial_balance=Decimal("0.00"),
+    )
+    db.add(account)
+    await db.commit()
+    await db.refresh(account)
+    return account
 
 
 async def check_duplicate_account(
@@ -96,19 +111,31 @@ async def get_accounts_by_user(
 async def get_account_summary(db: AsyncSession, user_id: int) -> dict:
     result = await db.execute(
         select(
-            func.coalesce(func.sum(Account.balance), Decimal("0.00")).label(
-                "total_balance"
-            ),
-            func.count(Account.id),
-        ).where(
+            Account.type,
+            func.coalesce(func.sum(Account.balance), Decimal("0.00")),
+        )
+        .where(
             Account.user_id == user_id,
             ~Account.is_deleted,
         )
+        .group_by(Account.type)
     )
-    row = result.one()
+    rows = result.all()
+
+    total_assets = Decimal("0.00")
+    total_liabilities = Decimal("0.00")
+
+    for account_type, total in rows:
+        if account_type in ASSET_TYPES:
+            total_assets += total
+        else:
+            total_liabilities += total
+
     return {
-        "total_balance": row[0],
-        "accounts_count": row[1],
+        "total_assets": total_assets,
+        "total_liabilities": total_liabilities,
+        "net_worth": total_assets - total_liabilities,
+        "accounts_count": sum(1 for _ in rows),
     }
 
 

@@ -23,6 +23,7 @@ from app.modules.auth.service import (
     get_user_by_email,
     get_user_by_id,
 )
+from app.modules.accounts.service import create_default_account
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -41,6 +42,8 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         )
 
     user = await create_user(db, data)
+
+    await create_default_account(db, user.id)
 
     return TokenResponse(
         access_token=create_access_token(user.id),
