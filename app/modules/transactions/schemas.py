@@ -13,6 +13,7 @@ __all__ = [
     "TransactionResponse",
     "TransferResponse",
     "TransactionSummary",
+    "DailySummary",
 ]
 
 
@@ -63,6 +64,7 @@ class TransactionTransfer(BaseModel):
 
 
 class TransactionUpdate(BaseModel):
+    account_id: int | None = None
     category_id: int | None = None
     amount: Decimal | None = Field(
         default=None,
@@ -94,9 +96,9 @@ class TransactionResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-    
-class TransferResponse(BaseModel):
 
+
+class TransferResponse(BaseModel):
     from_transaction: TransactionResponse
     to_transaction: TransactionResponse
     message: str = "Transfer completed successfully"
@@ -107,3 +109,10 @@ class TransactionSummary(BaseModel):
     total_expense: Decimal
     net: Decimal
     transaction_count: int
+    
+    
+class DailySummary(BaseModel):
+    date: Date
+    income: Decimal
+    expense: Decimal
+    net: Decimal

@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+python-multipart
 
 sqlalchemy
 asyncpg
@@ -15,3 +16,5 @@ python-jose[cryptography]
 httpx
 loguru
 email-validator
+apscheduler
+redis

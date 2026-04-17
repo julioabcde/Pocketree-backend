@@ -1,10 +1,11 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.accounts.models import Account
+from app.modules.reports.service import invalidate_reports_cache
 from app.modules.transactions.models import Transaction, TransactionType
 from app.modules.transactions.schemas import (
     TransactionCreate,
@@ -16,6 +17,7 @@ __all__ = [
     "get_transaction_by_id",
     "get_transactions_by_user",
     "get_transaction_summary",
+    "get_daily_summary",
     "update_transaction",
     "soft_delete_transaction",
     "create_transfer",
@@ -51,6 +53,7 @@ async def create_transaction(
 
     await db.commit()
     await db.refresh(transaction)
+    await invalidate_reports_cache(user_id)
     return transaction
 
 
@@ -121,9 +124,11 @@ async def get_transaction_summary(
 ) -> dict:
     income_sum = func.coalesce(
         func.sum(
-            func.case(
-                (Transaction.type == TransactionType.income,
-                 Transaction.amount),
+            case(
+                (
+                    Transaction.type == TransactionType.income,
+                    Transaction.amount,
+                ),
                 else_=Decimal("0"),
             )
         ),
@@ -132,9 +137,11 @@ async def get_transaction_summary(
 
     expense_sum = func.coalesce(
         func.sum(
-            func.case(
-                (Transaction.type == TransactionType.expense,
-                 Transaction.amount),
+            case(
+                (
+                    Transaction.type == TransactionType.expense,
+                    Transaction.amount,
+                ),
                 else_=Decimal("0"),
             )
         ),
@@ -176,40 +183,110 @@ async def get_transaction_summary(
     }
 
 
+async def get_daily_summary(
+    db: AsyncSession,
+    user_id: int,
+    start_date: date,
+    end_date: date,
+    account_id: int | None = None,
+) -> list[dict]:
+    income_sum = func.coalesce(
+        func.sum(
+            case(
+                (
+                    Transaction.type == TransactionType.income,
+                    Transaction.amount,
+                ),
+                else_=Decimal("0"),
+            )
+        ),
+        Decimal("0.00"),
+    )
+
+    expense_sum = func.coalesce(
+        func.sum(
+            case(
+                (
+                    Transaction.type == TransactionType.expense,
+                    Transaction.amount,
+                ),
+                else_=Decimal("0"),
+            )
+        ),
+        Decimal("0.00"),
+    )
+
+    query = (
+        select(
+            Transaction.date,
+            income_sum,
+            expense_sum,
+        )
+        .where(
+            Transaction.user_id == user_id,
+            ~Transaction.is_deleted,
+            Transaction.date >= start_date,
+            Transaction.date <= end_date,
+        )
+        .group_by(Transaction.date)
+        .order_by(Transaction.date)
+    )
+
+    if account_id is not None:
+        query = query.where(Transaction.account_id == account_id)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        {
+            "date": row[0],
+            "income": row[1],
+            "expense": row[2],
+            "net": row[1] - row[2],
+        }
+        for row in rows
+    ]
+
+
 async def update_transaction(
     db: AsyncSession,
     transaction: Transaction,
     data: TransactionUpdate,
 ) -> Transaction:
     old_amount = transaction.amount
+    old_account_id = transaction.account_id
 
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(transaction, field, value)
 
     new_amount = transaction.amount
+    new_account_id = transaction.account_id
 
-    if new_amount != old_amount:
+    if new_amount != old_amount or new_account_id != old_account_id:
         if transaction.type == TransactionType.income:
             old_change = -old_amount
-        else:
-            old_change = old_amount
-
-        if transaction.type == TransactionType.income:
             new_change = new_amount
         else:
+            old_change = old_amount
             new_change = -new_amount
-
-        net_change = old_change + new_change
 
         await db.execute(
             update(Account)
-            .where(Account.id == transaction.account_id)
-            .values(balance=Account.balance + net_change)
+            .where(Account.id == old_account_id)
+            .values(balance=Account.balance + old_change)
+        )
+
+        await db.execute(
+            update(Account)
+            .where(Account.id == new_account_id)
+            .values(balance=Account.balance + new_change)
         )
 
     await db.commit()
     await db.refresh(transaction)
+    await invalidate_reports_cache(transaction.user_id)
     return transaction
 
 
@@ -233,7 +310,9 @@ async def soft_delete_transaction(
 
     await db.commit()
     await db.refresh(transaction)
+    await invalidate_reports_cache(transaction.user_id)
     return transaction
+
 
 async def create_transfer(
     db: AsyncSession,
@@ -244,7 +323,6 @@ async def create_transfer(
     transfer_date: date,
     note: str | None = None,
 ) -> tuple[Transaction, Transaction]:
-    # Lock both account in ID order (deadlock prevention)
     ordered_ids = sorted([from_account_id, to_account_id])
 
     result = await db.execute(
@@ -255,7 +333,6 @@ async def create_transfer(
     )
     locked_accounts = {a.id: a for a in result.scalars().all()}
 
-    # Create both transaction (atomicity)
     from_transaction = Transaction(
         user_id=user_id,
         account_id=from_account_id,
@@ -278,7 +355,6 @@ async def create_transfer(
     )
     db.add(to_transaction)
 
-    # Flush to get generated IDs (not committed yet) for update
     await db.flush()
 
     from_transaction.transfer_id = to_transaction.id
@@ -290,5 +366,6 @@ async def create_transfer(
     await db.commit()
     await db.refresh(from_transaction)
     await db.refresh(to_transaction)
+    await invalidate_reports_cache(user_id)
 
     return from_transaction, to_transaction

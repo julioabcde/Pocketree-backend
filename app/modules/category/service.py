@@ -110,7 +110,7 @@ async def get_category_by_id(
             ~Category.is_deleted,
         )
     )
-    return result.scalars_one_or_none()
+    return result.scalar_one_or_none()
 
 
 async def get_categories_by_user(
