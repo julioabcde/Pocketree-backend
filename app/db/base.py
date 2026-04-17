@@ -6,3 +6,13 @@ from app.modules.auth.models import User  # noqa: F401
 from app.modules.accounts.models import Account  # noqa: F401
 from app.modules.category.models import Category  # noqa: F401
 from app.modules.transactions.models import Transaction  # noqa: F401
+from app.modules.split_bills.models import (  # noqa: F401
+    SplitBill,
+    SplitBillCharge,
+    SplitBillItem,
+    SplitBillParticipant,
+    SplitBillDebt,
+    SplitBillSettlement,
+    SplitBillParticipantItem,
+)
+from app.modules.recurring.models import RecurringTransaction  # noqa: F401

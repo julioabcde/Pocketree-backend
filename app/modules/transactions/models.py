@@ -34,6 +34,34 @@ class Transaction(Base, TimestampMixin):
             "user_id", "date", "created_at",
             postgresql_where=text("is_deleted = false"),
         ),
+        Index(
+            "ix_tx_reports_user_date_active_non_transfer",
+            "user_id",
+            "date",
+            postgresql_where=text("is_deleted = false AND transfer_id IS NULL"),
+        ),
+        Index(
+            "ix_tx_reports_user_account_date_active_non_transfer",
+            "user_id",
+            "account_id",
+            "date",
+            postgresql_where=text("is_deleted = false AND transfer_id IS NULL"),
+        ),
+        Index(
+            "ix_tx_reports_user_type_date_amount_active_non_transfer",
+            "user_id",
+            "type",
+            "date",
+            text("amount DESC"),
+            postgresql_where=text("is_deleted = false AND transfer_id IS NULL"),
+        ),
+        Index(
+            "ix_tx_reports_user_category_date_active_non_transfer",
+            "user_id",
+            "category_id",
+            "date",
+            postgresql_where=text("is_deleted = false AND transfer_id IS NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(
